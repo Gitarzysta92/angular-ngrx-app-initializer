@@ -4,21 +4,16 @@ import { UserEffects } from './features/user/user.effects';
 import { ProductEffects } from './features/product/product.effects';
 import { AppEffects } from './store/app.effects';
 import { importProvidersFrom } from '@angular/core';
+import { AppComponent } from './app.component';
+import { HomeComponent } from './features/home.component';
 
 console.log('%c[ROUTES] 📍 Routes configuration being loaded', 'color: brown; font-weight: bold');
 
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: '/home',
-    pathMatch: 'full'
-  },
-  {
-    path: 'home',
-    loadComponent: () => {
-      console.log('%c[ROUTES] 🏠 Loading home component...', 'color: teal; font-weight: bold');
-      return import('./app.component').then(m => m.AppComponent);
-    }
+    pathMatch: 'full',
+    component: HomeComponent
   },
   {
     path: 'user',

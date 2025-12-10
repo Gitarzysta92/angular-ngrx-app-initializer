@@ -10,6 +10,8 @@ To answer the question: **Does USER_PROVIDED_EFFECTS run before or after APP_INI
 
 This project explicitly uses the `USER_PROVIDED_EFFECTS` token (rather than just `provideEffects()`) to demonstrate that effects provided via this token are initialized after the APP_INITIALIZER promise resolves.
 
+Additionally, this project demonstrates that **HTTP_INTERCEPTORS** (provided via factory functions) also run AFTER APP_INITIALIZER completes, ensuring interceptors have access to initialized configuration and services.
+
 ## 📋 What This Demo Shows
 
 The application includes comprehensive console logging that clearly demonstrates the initialization sequence:
@@ -58,6 +60,8 @@ src/
 │   │   └── product/
 │   │       ├── product.effects.ts   # Another lazy-loaded effect
 │   │       └── product.component.ts # Product feature component
+│   ├── interceptors/
+│   │   └── config.interceptor.ts   # HTTP interceptor with factory pattern
 │   ├── services/
 │   │   └── config.service.ts        # APP_INITIALIZER service with logging
 │   ├── store/
@@ -109,7 +113,18 @@ src/
 - Also run AFTER APP_INITIALIZER (config is available)
 - Independent from root effects and other route effects
 
-## 🔑 USER_PROVIDED_EFFECTS Token Usage
+### 7. `interceptors/config.interceptor.ts`
+- **HTTP Interceptor** provided via `HTTP_INTERCEPTORS` token
+- Uses factory function with dependencies (similar to `USER_PROVIDED_EFFECTS` pattern)
+- Demonstrates that interceptors run AFTER APP_INITIALIZER
+- Has access to `ConfigService` loaded by APP_INITIALIZER
+- Logs all HTTP requests and uses config to modify URLs
+
+## 🔑 Provider Patterns Demonstrated
+
+This project demonstrates multiple provider patterns that all run AFTER APP_INITIALIZER:
+
+### 1. USER_PROVIDED_EFFECTS Token
 
 This project explicitly uses the `USER_PROVIDED_EFFECTS` token to register effects:
 
@@ -144,6 +159,48 @@ export const appConfig: ApplicationConfig = {
 ```
 
 The `USER_PROVIDED_EFFECTS` token is the underlying mechanism that `provideEffects()` uses internally. By using it directly, we make it crystal clear what we're demonstrating.
+
+### 2. HTTP_INTERCEPTORS with Factory Pattern
+
+This project also demonstrates HTTP interceptors using the same factory pattern:
+
+```typescript
+// app.config.ts
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { ConfigInterceptor } from './interceptors/config.interceptor';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    // APP_INITIALIZER runs first
+    {
+      provide: APP_INITIALIZER,
+      useFactory: initializeApp,
+      deps: [ConfigService],
+      multi: true
+    },
+    
+    // HTTP Client setup
+    provideHttpClient(withInterceptorsFromDi()),
+    
+    // HTTP_INTERCEPTORS - Factory pattern with dependencies
+    {
+      provide: HTTP_INTERCEPTORS,
+      useFactory: (configService: ConfigService) => {
+        console.log('HTTP_INTERCEPTORS factory called');
+        return new ConfigInterceptor(configService);
+      },
+      multi: true,
+      deps: [ConfigService]
+    }
+  ]
+};
+```
+
+**Key Points:**
+- ✅ Interceptor factory runs AFTER APP_INITIALIZER completes
+- ✅ Interceptor has access to `ConfigService` loaded by APP_INITIALIZER
+- ✅ Same factory pattern as `USER_PROVIDED_EFFECTS`
+- ✅ Demonstrates that all provider factories run after APP_INITIALIZER
 
 ## 🚀 Route-Level Effects (Lazy Loading)
 
@@ -245,10 +302,12 @@ The app includes an interactive UI that displays:
 1. **APP_INITIALIZER blocks the entire application bootstrap** until it completes
 2. **NgRx Store is initialized after** APP_INITIALIZER resolves
 3. **Root NgRx Effects (USER_PROVIDED_EFFECTS) are initialized after** the Store is ready
-4. **Route-level effects are lazy-loaded** when their route is activated, but APP_INITIALIZER has already completed
-5. **All effects** (root and route-level) **always have access** to configuration loaded by APP_INITIALIZER
-6. Effects can safely use services that were initialized in APP_INITIALIZER
-7. **Lazy-loading doesn't change the guarantee** - effects always run after APP_INITIALIZER
+4. **HTTP Interceptors (HTTP_INTERCEPTORS) are initialized after** APP_INITIALIZER completes
+5. **Route-level effects are lazy-loaded** when their route is activated, but APP_INITIALIZER has already completed
+6. **All providers** (effects, interceptors, etc.) **always have access** to configuration loaded by APP_INITIALIZER
+7. Effects and interceptors can safely use services that were initialized in APP_INITIALIZER
+8. **Lazy-loading doesn't change the guarantee** - effects always run after APP_INITIALIZER
+9. **Factory functions with dependencies** (like `USER_PROVIDED_EFFECTS` and `HTTP_INTERCEPTORS`) all run after APP_INITIALIZER
 
 ## 🔗 Why This Matters
 
